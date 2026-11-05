@@ -3342,9 +3342,11 @@ int sortMapsFunc(const void *a, const void *b) {
 	Map *map_a = *(Map **)a;
 	Map *map_b = *(Map **)b;
 	// handling for 'Ohm'...
-	if( map_a->getName()[0] == '0' )
+	// (n.b., qsort may compare an element with itself, which must give 0:
+	// libnix's qsort never ends when it doesn't)
+	if( map_a->getName()[0] == '0' && map_b->getName()[0] != '0' )
 		return 1;
-	else if( map_b->getName()[0] == '0' )
+	else if( map_b->getName()[0] == '0' && map_a->getName()[0] != '0' )
 		return -1;
 	return strcmp(map_a->getName(), map_b->getName());
 }
@@ -5459,11 +5461,18 @@ void playGame(int n_args, char *args[]) {
 		return;
 	}
 	game_g->drawProgress(95);
+	LOG("converting %d objects to textures\n", (int)TrackedObject::getNumTags());
 
 	for(size_t i=0;i<TrackedObject::getNumTags();i++) {
 		TrackedObject *to = TrackedObject::getTag(i);
 		if( to != NULL && strcmp( to->getClass(), "CLASS_IMAGE" ) == 0 ) {
 			Gigalomania::Image *image = (Gigalomania::Image *)to;
+#if defined(__amigaos__)
+			// a 68040 takes a while here: say how far it has got
+			if( i % 200 == 0 ) {
+				LOG("texture %d of %d\n", (int)i, (int)TrackedObject::getNumTags());
+			}
+#endif
 			if( !image->convertToDisplayFormat() ) {
 				LOG("failed to convertToDisplayFormat\n");
 				LOG("delete game %d\n", game_g);
