@@ -18,7 +18,7 @@
 #include <direct.h> // for mkdir
 #define access _access
 #define mkdir _mkdir
-#elif __linux
+#elif __linux || defined(__amigaos__)
 #include <sys/stat.h> // for mkdir
 #include <unistd.h> // for access
 #endif
@@ -103,6 +103,10 @@ const char application_path[] = "/sdcard/net.sourceforge.gigalomania";
 const char *application_path_uninstall = NULL; // path for folder that will be deleted upon uninstall
 #elif __linux
 char *application_path = NULL;
+#elif defined(__amigaos__)
+// AmigaOS: the player's files (prefs, saves, the log) in the User drawer
+// beside the program
+char application_path[] = "PROGDIR:User/";
 #else
 char application_path[] = "";
 #endif
@@ -199,6 +203,10 @@ void initFolderPaths() {
 		// just save in local directory and hope for the best!
 		strcpy(application_path, "");
 	}
+#elif defined(__amigaos__)
+	if( access("PROGDIR:User", 0) != 0 ) {
+		mkdir("PROGDIR:User", S_IRWXU);
+	}
 #else
 	// no need to do anything
 #endif
@@ -240,6 +248,9 @@ const char *getApplicationFilename(const char *name, bool survive_uninstall) {
 		filename = new char[len+1];
 		sprintf(filename, "%s/%s", path, name);
 	}
+#elif defined(__amigaos__)
+	char *filename = new char[strlen(application_path) + strlen(name) + 1];
+	sprintf(filename, "%s%s", application_path, name);
 #else
 	char *filename = new char[strlen(name)+1];
 	strcpy(filename, name);
@@ -283,6 +294,8 @@ void initLogFile() {
     LOG("Platform: AmigaOS 4\n");
 #elif AROS
     LOG("Platform: AROS\n");
+#elif defined(__amigaos__)
+    LOG("Platform: AmigaOS 3\n");
 #elif defined(__MORPHOS__)
     LOG("Platform: MorphOS\n");
 #else

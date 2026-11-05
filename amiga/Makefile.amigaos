@@ -1,0 +1,86 @@
+# Gigalomania for AmigaOS 3.x, 68040/68060 + FPU, on GFOpenGPU's SDL 2
+# (with SDL2_image for the PNG pictures and SDL2_mixer for the music and
+# the sounds).
+#
+#   make -f amiga/Makefile.amigaos -j2 [STOVE=/path/to/os32-gcc16-open6]
+#
+# STOVE is a GFOpenAmigaGCC 16.2.0-open6 stove: its prefix/ has the
+# compiler, the NDK and GFOpenGPU's SDL 2 kit (prefix/m68k-amigaos); SDL2KIT
+# may name the kit elsewhere. The data (gfx/, sound/, music/, islands/) is
+# upstream's, read from the program's drawer; the preferences, saved games
+# and log go to PROGDIR:User/.
+#
+# Output: build/amigaos/Gigalomania/ (the drawer: gigalomania, the data,
+# readme.html, ReadMe, the licences, User/, with GlowIcons),
+# build/amigaos/Gigalomania.info and Install-Gigalomania beside them.
+
+STOVE   ?= $(HOME)/AmiCradle/stoves/os32-gcc16-open6
+PREFIX  ?= $(STOVE)/prefix
+SDL2KIT ?= $(PREFIX)/m68k-amigaos
+CC      = $(PREFIX)/bin/m68k-amigaos-gcc
+CXX     = $(PREFIX)/bin/m68k-amigaos-g++
+CPU     ?= -m68040 -m68881
+# -fno-tree-loop-distribute-patterns: GCC 16's loop miscompile (the kit's
+# sdl2-config gives it for GCC 16 too).
+OPT     ?= -O2 -fomit-frame-pointer -fno-tree-loop-distribute-patterns
+
+# The kit's include/SDL2 holds SDL.h: stdafx.h, image.h and sound.h take
+# <SDL.h>, <SDL_image.h> and <SDL_mixer.h> under __amigaos__ as for
+# AmigaOS 4 and AROS.
+DEFS    = -D__amigaos__
+INC     = -Iamiga -I. -I$(SDL2KIT)/include/SDL2
+COMMON  = -noixemul $(OPT) $(CPU) $(DEFS)
+CXXFLAGS = $(COMMON) -std=gnu++11 $(INC)
+CFLAGS   = $(COMMON) -std=gnu99
+AMIGAWARN = -Wall -Wextra
+LDFLAGS = -noixemul $(CPU)
+# libstdc++'s exception support calls pthread (the stove's libpthread).
+LIBS    = -L$(SDL2KIT)/lib -lSDL2_image -lSDL2_mixer -lSDL2 -lm -lpthread
+
+BUILD   = build/amigaos
+OBJDIR  = $(BUILD)/obj
+OUT     = $(BUILD)/Gigalomania
+PROG    = gigalomania
+
+# Upstream's Makefile list.
+SRC     = game.cpp gamestate.cpp gui.cpp image.cpp main.cpp panel.cpp player.cpp \
+          resources.cpp screen.cpp sector.cpp sound.cpp tutorial.cpp utils.cpp \
+          TinyXML/tinyxml.cpp TinyXML/tinyxmlerror.cpp TinyXML/tinyxmlparser.cpp
+OBJS    = $(SRC:%.cpp=$(OBJDIR)/%.o) \
+          $(OBJDIR)/amiga/amiga_screens.o $(OBJDIR)/amiga/amiga_progdir.o \
+          $(OBJDIR)/amiga/stack.o
+DATADIRS = gfx sound music islands
+
+all: $(OUT)/$(PROG) package
+
+$(OUT)/$(PROG): $(OBJS)
+	@mkdir -p $(OUT)
+	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+
+package: $(OUT)/$(PROG) AMIGA_PORT.md amiga/COPYING-GPL2.txt readme.html amiga/Licences.txt
+	mkdir -p $(OUT)/User
+	for d in $(DATADIRS); do mkdir -p $(OUT)/$$d && cp $$d/* $(OUT)/$$d/ ; done
+	cp AMIGA_PORT.md $(OUT)/ReadMe
+	cp readme.html $(OUT)/readme.html
+	cp amiga/COPYING-GPL2.txt $(OUT)/COPYING.txt
+	cp amiga/Licences.txt $(OUT)/Licences.txt
+	cp amiga/icons/gigalomania.info amiga/icons/ReadMe.info $(OUT)/
+	for f in readme.html COPYING.txt Licences.txt; do cp amiga/icons/ReadMe.info $(OUT)/$$f.info; done
+	for d in $(DATADIRS) User; do cp amiga/icons/Data.info $(OUT)/$$d.info; done
+	cp amiga/icons/Gigalomania-drawer.info $(BUILD)/Gigalomania.info
+	cp amiga/installer/Install-Gigalomania amiga/installer/Install-Gigalomania.info $(BUILD)/
+
+$(OBJDIR)/amiga/%.o: amiga/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(AMIGAWARN) -c -o $@ $<
+
+$(OBJDIR)/%.o: %.cpp $(wildcard *.h) $(wildcard TinyXML/*.h)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+objs: $(OBJS)
+
+clean:
+	rm -rf $(BUILD)
+
+.PHONY: all package objs clean

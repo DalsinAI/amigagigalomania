@@ -402,7 +402,22 @@ bool Gigalomania::Image::convertToHiColor(bool alpha) {
 	CreateMask(rmask, gmask, bmask, amask);
 
 	int depth = alpha ? 32 : 24;
+#if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
+	if( depth == 24 ) {
+		// CreateMask()'s big-endian masks are a 32-bit pixel's; a 24-bit
+		// pixel's bytes are R, G, B, so its masks are these (with the 32-bit
+		// ones SDL_CreateRGBSurface() fails and returns NULL)
+		rmask = 0x00ff0000;
+		gmask = 0x0000ff00;
+		bmask = 0x000000ff;
+		amask = 0;
+	}
+#endif
 	SDL_Surface *new_surf = SDL_CreateRGBSurface(0, this->getWidth(), this->getHeight(), depth, rmask, gmask, bmask, amask);
+	if( new_surf == NULL ) {
+		LOG("convertToHiColor: SDL_CreateRGBSurface failed: %s\n", SDL_GetError());
+		return false;
+	}
 	SDL_BlitSurface(this->surface, NULL, new_surf, NULL);
 	free();
 	this->surface = new_surf;
@@ -431,7 +446,7 @@ bool Gigalomania::Image::convertToDisplayFormat() {
 #else
 	texture = SDL_CreateTextureFromSurface(sdlRenderer, surface);
 	if( texture == NULL ) {
-		LOG("SDL_CreateTextureFromSurface failed\n");
+		LOG("SDL_CreateTextureFromSurface failed: %s (%d x %d, %d bpp, format 0x%x)\n", SDL_GetError(), surface->w, surface->h, surface->format->BitsPerPixel, (unsigned int)surface->format->format);
 		return false;
 	}
 	/*{

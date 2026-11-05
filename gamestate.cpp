@@ -1104,7 +1104,7 @@ bool PlayingGameState::readSectors(Map *map) {
 			ok = readSectorsProcessLine(map, line, &done_header, &sec_x, &sec_y);
 		}
 	}
-	file->close(file);
+	SDL_RWclose(file);
 
 	return ok;
 }

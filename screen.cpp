@@ -69,7 +69,12 @@ bool Gigalomania::Screen::open(int screen_width, int screen_height, bool fullscr
 		return false;
 	}
 #else
+#if defined(__amigaos__)
+	// a screen of the given size (SDL2.module opens one of the Workbench's size for _DESKTOP)
+	if( SDL_CreateWindowAndRenderer(screen_width, screen_height, fullscreen ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_RESIZABLE, &sdlWindow, &sdlRenderer) != 0 ) {
+#else
 	if( SDL_CreateWindowAndRenderer(screen_width, screen_height, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_RESIZABLE, &sdlWindow, &sdlRenderer) != 0 ) {
+#endif
 		LOG("failed to open screen at this resolution\n");
 		return false;
 	}
