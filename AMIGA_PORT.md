@@ -94,9 +94,11 @@ RWops and qsort fixes below, which are right on every platform.
   The texture step logs its progress every 200 pictures.
 - game.cpp, gamestate.cpp: the game called its RWops' read, write, size
   and close function pointers itself. Those functions are SDL2.module's and
-  need its data register, so here they crashed or did nothing (the islands
-  were never read). They now go through SDL_RWread, SDL_RWwrite,
-  SDL_RWsize and SDL_RWclose, which is the same call on every platform.
+  expect its data register, which only the stub's own calls set; they now
+  go through SDL_RWread, SDL_RWwrite, SDL_RWsize and SDL_RWclose, which is
+  the same call on every platform. (The islands, the preferences and the
+  saved games are read and written this way, and all of them worked in
+  the lab.)
 - game.cpp, sortMapsFunc(): qsort's comparison answered "less" for an
   island compared with itself when its name starts with "0" (the island
   Ohm, 0mega.map); libnix's qsort compares an element with itself, and
