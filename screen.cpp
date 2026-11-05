@@ -60,21 +60,23 @@ bool Gigalomania::Screen::canOpenFullscreen(int width, int height) {
 bool Gigalomania::Screen::open(int screen_width, int screen_height, bool fullscreen) {
 	LOG("Screen::open(%d, %d, %s)\n", screen_width, screen_height, fullscreen?"fullscreen":"windowed");
 #if SDL_MAJOR_VERSION == 1
+#ifdef __amigaos__
+	// a 32-bit screen, asked for as such (OpenGPU's SDL may otherwise give 24-bit)
+	surface = SDL_SetVideoMode(screen_width, screen_height, 32, SDL_SWSURFACE|(fullscreen ? SDL_FULLSCREEN : 0));
+#else
 	if( fullscreen )
 		surface = SDL_SetVideoMode(screen_width, screen_height, 32, SDL_HWSURFACE|SDL_HWPALETTE|SDL_FULLSCREEN);
 	else
 		surface = SDL_SetVideoMode(screen_width, screen_height, 32, SDL_HWSURFACE|SDL_HWPALETTE);
+#endif
 	if( surface == NULL ) {
 		LOG("failed to open screen at this resolution\n");
 		return false;
 	}
-#else
-#if defined(__amigaos__)
-	// a screen of the given size (SDL2.module opens one of the Workbench's size for _DESKTOP)
-	if( SDL_CreateWindowAndRenderer(screen_width, screen_height, fullscreen ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_RESIZABLE, &sdlWindow, &sdlRenderer) != 0 ) {
+	LOG("screen surface: %d bpp, masks %08x %08x %08x %08x, flags %08x\n", surface->format->BitsPerPixel,
+		surface->format->Rmask, surface->format->Gmask, surface->format->Bmask, surface->format->Amask, surface->flags);
 #else
 	if( SDL_CreateWindowAndRenderer(screen_width, screen_height, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_RESIZABLE, &sdlWindow, &sdlRenderer) != 0 ) {
-#endif
 		LOG("failed to open screen at this resolution\n");
 		return false;
 	}

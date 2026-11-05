@@ -6,8 +6,7 @@
  * with every screen that was not there before SDL started, has no window
  * left on it and SDL's title: closed if Intuition lets it, else sent behind
  * the Workbench.
- * The AmiCradle Team (from the Seven Kingdoms and Abbaye ports). GPL 2 or
- * later here, like Gigalomania. */
+ * (From the Seven Kingdoms and Wizznic ports.) The AmiCradle Team. GPL 3 or later (Gigalomania is GPL 2 or later). */
 
 #include <exec/types.h>
 #include <intuition/intuitionbase.h>

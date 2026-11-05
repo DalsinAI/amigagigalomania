@@ -1,156 +1,112 @@
 Gigalomania for AmigaOS 3.x
 ===========================
 
-A port of Gigalomania 1.0.1 (Mark Harman's remake of Mega-Lo-Mania, SDL 2,
-https://sourceforge.net/projects/gigalomania/, git commit
-3bb9e19c7ab515d853fb5057be30e73dd27839d8), for AmigaOS 3.2 on a 68040 or
-68060 with an FPU and an RTG screen, on GFOpenGPU's SDL 2.
-
-Status: runs in an AmiCradle lab (a copy of Instance-32, AmigaOS 3.2);
-see "Testing" at the end.
-
+Gigalomania 1.0.1, Mark Harman's free real-time strategy game in the style
+of Mega-Lo-Mania: lead your tribe through the ages from 10000 BC to 2100 AD,
+invent weapons, mine elements, build towers and conquer each island's
+sectors. This is the AmiCradle Team's port to AmigaOS 3.x.
 
 What you need
 -------------
 
-- A 68040 or 68060 with an FPU (not an LC040 or EC040), AmigaOS 3.2, an RTG
-  card (or an AmiCradle instance).
-- GFOpenGPU: gfopengpu.library and LIBS:GFOpenGPU/SDL2.module,
-  SDL2_image.module (the PNG and JPEG pictures) and SDL2_mixer.module (the
-  Ogg Vorbis music and the sounds), installed by OpenUp.
-- About 28 MB of disk (13 MB of it music, 7.5 MB sounds), and plenty of
-  free memory: the game keeps all its pictures (1897 of them) in memory.
-- Patience at start: on the lab's 68040 the game takes about a minute to
-  load its pictures and turn them into textures (the loading bar).
+- A 68040 or 68060 with an FPU, AmigaOS 3.2, an RTG card (or the
+  AmigaChrome lab).
+- OpenGPU 0.6 or later: opengpu.library and LIBS:OpenGPU/SDL2.module
+  (the game uses SDL 1.2, which the OpenGPU kit provides on SDL 2).
+- AHI for sound.
+- About 25 MB of disk (the music is most of it).
 
+Playing
+-------
 
-How to play
------------
+Double-click Gigalomania, or from a Shell run it from anywhere: it moves
+to its own drawer first. It opens a 640x480 screen (the game's 320x240
+drawn at twice the size). Everything is played with the mouse: the left
+button picks and places, the right button cancels and sends men back.
+P pauses, Return answers the game's questions, and Esc or Q asks to quit
+(in a game, first back to the menus).
 
-Run Install-Gigalomania from its icon (it asks where the Gigalomania
-drawer goes, checks the CPU, the FPU and GFOpenGPU's modules, and keeps
-your saved games on an update), or copy the drawer anywhere. Double-click
-gigalomania, or from a Shell:
+Prefs, saved games and log.txt are written into the drawer.
 
-    cd Gigalomania
-    gigalomania [fullscreen] [onemousebutton]
+How the port is made
+--------------------
 
-It opens a 640x480 window (the game's 320x240 twice the size);
-"fullscreen" opens a 640x480 screen of its own instead. "onemousebutton"
-plays with the left button only (as upstream describes in readme.html).
-
-Pick a game type (tutorial, single island, all islands), then a player,
-then an island and the number of men for it: right-click the man icon to
-add men, left-click to take them away, then click the map. Build, research,
-mine and fight as in Mega-Lo-Mania; readme.html (in the drawer) is
-upstream's full manual.
-
-- The mouse plays the game; P pauses.
-- Esc, Q or Right Amiga+Q bring up the quit menu: "Save game and quit to
-  desktop" leaves the game and keeps it in User/autosave.sav (it carries on
-  from there next time), "Exit battle" gives the island up, "Cancel" goes
-  back. The window's close gadget saves and quits at once.
-
-Preferences (sound and music on or off), saved games and a log
-(log.txt, log_old.txt) go into the drawer's User drawer.
-
-
-Building
---------
-
-GFOpenAmigaGCC 16.2.0-open6 (the os32-gcc16-open6 stove, which carries the
-NDK and GFOpenGPU's SDL 2 kit):
-
-    make -f amiga/Makefile.amigaos -j2 STOVE=/path/to/os32-gcc16-open6
-
-The default STOVE is ~/AmiCradle/stoves/os32-gcc16-open6. Output:
-build/amigaos/Gigalomania/ (gigalomania, gfx/, sound/, music/, islands/,
-readme.html, ReadMe, COPYING.txt, Licences.txt, User/, with GlowIcons),
-build/amigaos/Gigalomania.info and Install-Gigalomania with its icon
-beside them. The icons come from amiga/icons/icons.json and the Installer
-script from amiga/installer/installer.json (amicradle's
-scripts/port_icons.py and port_installer.py).
-
-
-What was changed
-----------------
-
-Upstream's files keep their Windows line ends. The changes are under
-`__amigaos__` (or, for the 24-bit masks, `SDL_BIG_ENDIAN`), except the
-RWops and qsort fixes below, which are right on every platform.
-
-- amiga/Makefile.amigaos: upstream's file list, with the kit's SDL2,
-  SDL2_image and SDL2_mixer. amiga/sdl.h answers stdafx.h's `<sdl.h>`.
-- main.cpp, amiga/amiga_progdir.c: the program's drawer is made the
-  current directory at start (the game names its data gfx/..., sound/...,
-  music/..., islands/...), and given back at the end; the empty screens
-  SDL2.module leaves are closed after SDL_Quit() (amiga/amiga_screens.c,
-  from the Seven Kingdoms and Abbaye ports).
-- utils.cpp: the player's files go to PROGDIR:User/ (made when first
-  needed); "Platform: AmigaOS 3" in the log.
-- game.cpp: a window by default and at most 640x480, as upstream does for
-  AmigaOS 4; "fullscreen" opens a 640x480 screen rather than one of the
-  Workbench's size (screen.cpp: SDL_WINDOW_FULLSCREEN, not _DESKTOP).
-  The texture step logs its progress every 200 pictures.
-- game.cpp, gamestate.cpp: the game called its RWops' read, write, size
-  and close function pointers itself. Those functions are SDL2.module's and
-  expect its data register, which only the stub's own calls set; they now
-  go through SDL_RWread, SDL_RWwrite, SDL_RWsize and SDL_RWclose, which is
-  the same call on every platform. (The islands, the preferences and the
-  saved games are read and written this way, and all of them worked in
-  the lab.)
-- game.cpp, sortMapsFunc(): qsort's comparison answered "less" for an
-  island compared with itself when its name starts with "0" (the island
-  Ohm, 0mega.map); libnix's qsort compares an element with itself, and
-  never finished. It now answers 0 there.
-- image.cpp, convertToHiColor(): on a big-endian machine CreateMask()
-  gives 32-bit masks (R in the top byte), which SDL_CreateRGBSurface()
-  refuses for a 24-bit surface; every picture came out NULL, so the first
-  texture failed and the game ended. 24-bit surfaces get 24-bit masks
-  now, and a failure is reported rather than used.
-- amiga/stack.c: 256 KB of stack (the icon asks for it too) and a $VER
-  string.
-
-Frame pacing is upstream's: Application::wait() holds each frame to at
-least 16 ms with SDL_Delay, and the game runs on elapsed time.
-
-Big-endian: apart from convertToHiColor() above, the picture code takes
-its masks from CreateMask(), which has a big-endian case, or from the
-surfaces themselves; the maps and saved games are text (XML); the sounds
-and music go through SDL2_mixer. Saved games are interchangeable with
-other platforms'.
-
+- Upstream's SDL 1.2 code path, unchanged except for small `__amigaos__`
+  blocks in game.cpp, image.cpp and main.cpp.
+- Screen: upstream tries 4x, then 3x, then 2x of 320x240 in full screen.
+  On the Amiga it starts at 2x (640x480), then 1x.
+- SDL_image 1.2: amiga/sdl_image_lite.c (from the Wizznic port) reads
+  PNG with libpng. The game's two JPEG backdrops (starfield, stars) are
+  turned into PNG for the drawer, and game.cpp asks for the .png names.
+- SDL_mixer 1.2: amiga/sdl_mixer_lite.c (from the Wizznic port), with
+  looping, pausing and fading channels added for the aircraft sounds.
+  It plays WAV only, so the Ogg Vorbis effects become 16-bit PCM WAV and
+  the music becomes IMA ADPCM WAV on the host (amiga/tools/ogg2wav.py),
+  and game.cpp asks for the .wav names.
+- amiga/amiga_rwops.c: SDL_RWFromFile on plain stdio (linked with
+  --wrap). OpenGPU's sdl12-compat passes the call to SDL2.module, and in
+  the lab it never returned for the first picture.
+- The map list is sorted with a comparator that is now consistent when
+  an island is compared with itself ("0mega"); libnix's qsort looped
+  forever on upstream's.
+- The screen is asked for as a 32-bit software surface (no
+  SDL_HWPALETTE).
+- amiga/amiga_start.c: moves into PROGDIR: and, at exit, deals with any
+  screens SDL2.module 0.6 leaves (amiga/amiga_screens.c).
+- amiga/pthread_stubs.c: what libstdc++'s exception code asks of POSIX
+  threads, for a program with one thread.
+- 256 KB stack (amiga/stack.c and the icon).
 
 Known limits
 ------------
 
-- Start-up takes about a minute on a 68040, and the game wants a lot of
-  free memory (it wasn't measured).
-- Upstream looks for some optional pictures (gfx/attacker_walking_N.png)
-  before the per-direction ones; their absence is logged and is normal.
-- All drawing goes through SDL's renderer on GFOpenGPU; with many units on
-  screen a 68040 will run slower.
-- Network play (upstream's "server"/"client" options) was not tried.
+- Status: lab-tested (Instance-45, an emulated 68040 with an FPU, 5 Nov
+  2026, after the 24-bit mask fix below): it loads in about 13 seconds,
+  the menus answer clicks, a Single Island game on Alpha starts and
+  runs (the men multiply), and "Save game and quit to desktop" writes
+  autosave.sav and exits cleanly. The game screen draws at about 4 to 6
+  frames a second there.
+- As upstream: on the "choose how many men" page the right mouse button
+  (held) raises the number of men and the left button lowers it.
 
+- 24-bit surfaces: on a big-endian machine CreateMask() in image.cpp
+  gave RGBA masks (red at 0xff000000) even for 24-bit surfaces, which do
+  not fit in 24 bits, so sdl12-compat made them 8-bit paletted. Every
+  "hi colour" picture and every popup background was then paletted, and
+  each SDL_MapRGB and blit into one searched the palette (SDL_FindColor):
+  loading took about three minutes and a hovered button's help popup
+  stopped the game. CreateMask() now takes the depth and gives 24-bit
+  masks (no alpha) for 24-bit surfaces.
 
-Testing
--------
+- Network play (upstream's multiplayer test modes) is not built in.
+- Speed on a real 68040 is not measured yet; the lab is an emulated
+  68040.
 
-In an AmiCradle lab (t4-port-b, a copy of Instance-32), 5 November 2026,
-from SYS:Games/Gigalomania:
+Building
+--------
 
-- Start: the loading bar, then (after about a minute) "Choose a game type"
-  over the planet and starfield, in the right colours, in a 640x480 window.
-- Single island, then "Controller of the Green People", then the island
-  screen of the first age; right-clicking the man icon added men,
-  clicking the map started the battle: the island with its trees, the
-  tower, the side panel, the clock, the shield and research icons. The
-  research button opened the designs panel.
-- Esc and Right Amiga+Q both opened the quit menu; "Save game and quit to
-  desktop" ended the program, the Workbench came back with nothing left
-  over, and User/autosave.sav was written. Started again, the game loaded
-  the saved battle and carried on with it.
-- Not heard: the lab is muted, so the music and sounds were not checked by
-  ear; the log shows gamemusic.ogg being loaded.
-- Not tried: a whole battle to its end, the tutorial, "all islands",
-  "fullscreen", "onemousebutton", network play.
+    make -f amiga/Makefile.amigaos -j2
+
+The defaults find GFOpenAmigaGCC 16.2.0-open4 (STOVE), the NDK, the
+OpenGPU SDK (SDLKIT) and the Team's static libpng and zlib (DEPS); override
+them on the command line as needed. The drawer is made in
+dist/Gigalomania, with dist/Gigalomania.info beside it. Making the drawer
+needs Python 3 with PIL and GStreamer (gst-launch-1.0 with vorbisdec,
+audioconvert, audioresample and wavenc).
+
+Data and licences
+-----------------
+
+The game is GPL 2 or later (COPYING); TinyXML is zlib-licensed. All the
+data in the drawer ships with Gigalomania under free licences: the speech
+samples CC0, the effects CC0, CC BY 3.0 or GPL, the music CC BY 3.0
+(Sindre Froyn; "Warm Ink" by _ghost), the graphics CC0, CC BY 3.0,
+CC BY-SA 3.0 or GPL. ReadMe-Gigalomania.html in the drawer, upstream's
+readme, lists every file with its author and licence.
+
+The amiga/ files are the AmiCradle Team's, GPL 3 or later (pthread_stubs.c
+GPL 2 or later).
+
+Upstream: https://sourceforge.net/projects/gigalomania/ (git:
+https://git.code.sf.net/p/gigalomania/code), base v1.0.1,
+f8832eab7c99ed2b89eb4dadb453b02613a79a86.

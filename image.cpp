@@ -20,8 +20,18 @@ using std::max;
 
 SDL_Surface *my_IMG_LoadLBM_RW(SDL_RWops *src);
 
-inline void CreateMask( Uint32& rmask, Uint32& gmask, Uint32& bmask, Uint32& amask) {
+inline void CreateMask( Uint32& rmask, Uint32& gmask, Uint32& bmask, Uint32& amask, int bpp = 32) {
 #if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
+	if( bpp == 24 ) {
+		// The RGBA masks don't fit in 24 bits: sdl12-compat then makes an
+		// 8-bit paletted surface, and every SDL_MapRGB and blit into it
+		// searches the palette (SDL_FindColor).
+		rmask = 0x00ff0000;
+		gmask = 0x0000ff00;
+		bmask = 0x000000ff;
+		amask = 0;
+		return;
+	}
 	rmask = 0xff000000;
 	gmask = 0x00ff0000;
 	bmask = 0x0000ff00;
@@ -398,26 +408,11 @@ bool Gigalomania::Image::convertToHiColor(bool alpha) {
 	int bpp = this->surface->format->BitsPerPixel;
 	if( bpp == 32 )
 		return false;
-	Uint32 rmask, gmask, bmask, amask;
-	CreateMask(rmask, gmask, bmask, amask);
-
 	int depth = alpha ? 32 : 24;
-#if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
-	if( depth == 24 ) {
-		// CreateMask()'s big-endian masks are a 32-bit pixel's; a 24-bit
-		// pixel's bytes are R, G, B, so its masks are these (with the 32-bit
-		// ones SDL_CreateRGBSurface() fails and returns NULL)
-		rmask = 0x00ff0000;
-		gmask = 0x0000ff00;
-		bmask = 0x000000ff;
-		amask = 0;
-	}
-#endif
+	Uint32 rmask, gmask, bmask, amask;
+	CreateMask(rmask, gmask, bmask, amask, depth);
+
 	SDL_Surface *new_surf = SDL_CreateRGBSurface(0, this->getWidth(), this->getHeight(), depth, rmask, gmask, bmask, amask);
-	if( new_surf == NULL ) {
-		LOG("convertToHiColor: SDL_CreateRGBSurface failed: %s\n", SDL_GetError());
-		return false;
-	}
 	SDL_BlitSurface(this->surface, NULL, new_surf, NULL);
 	free();
 	this->surface = new_surf;
@@ -446,7 +441,7 @@ bool Gigalomania::Image::convertToDisplayFormat() {
 #else
 	texture = SDL_CreateTextureFromSurface(sdlRenderer, surface);
 	if( texture == NULL ) {
-		LOG("SDL_CreateTextureFromSurface failed: %s (%d x %d, %d bpp, format 0x%x)\n", SDL_GetError(), surface->w, surface->h, surface->format->BitsPerPixel, (unsigned int)surface->format->format);
+		LOG("SDL_CreateTextureFromSurface failed\n");
 		return false;
 	}
 	/*{
@@ -917,7 +912,13 @@ Gigalomania::Image *Gigalomania::Image::loadImage(const char *filename) {
 	}
 #endif
 	if( image->surface == NULL ) {
+#ifdef __amigaos__
+		// amiga/sdl_image_lite.c reads the file itself
+		SDL_RWclose(src);
+		image->surface = IMG_Load(filename);
+#else
 		image->surface = IMG_Load_RW(src, 1);
+#endif
 	}
 
 	if( image->surface == NULL ) {
@@ -950,7 +951,7 @@ Gigalomania::Image *Gigalomania::Image::loadImage(const char *filename) {
 
 Gigalomania::Image *Gigalomania::Image::createBlankImage(int width,int height, int bpp) {
 	Uint32 rmask, gmask, bmask, amask;
-	CreateMask(rmask, gmask, bmask, amask);
+	CreateMask(rmask, gmask, bmask, amask, bpp);
 
 	SDL_Surface *surface = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, bpp, rmask, gmask, bmask, amask);
 
