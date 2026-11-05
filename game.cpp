@@ -2929,6 +2929,15 @@ void Game::getDesktopResolution(int *user_width, int *user_height) const {
 			*user_height = displayMode.h;
 			LOG("desktop is %d x %d\n", *user_width, *user_height);
 		}
+#if defined(__amigaos__)
+		// AmigaOS 3 on a 68040: every picture is drawn by the 68k, so the
+		// window is at most 640x480 (twice the game's 320x240), as on AmigaOS 4
+		if( *user_width > 640 )
+			*user_width = 640;
+		if( *user_height > 480 )
+			*user_height = 480;
+		LOG("size restricted to %d x %d\n", *user_width, *user_height);
+#endif
 #endif
 
 #endif
@@ -3063,6 +3072,10 @@ bool Game::openScreen(bool fullscreen) {
 #ifdef _WIN32
 		// However, on Windows 10, there is a bug in the task view that Gigalomania shows as a tiny window, unless we've opened the screen with the desktop resolution
 		getDesktopResolution(&user_width, &user_height);
+#elif defined(__amigaos__)
+		// AmigaOS 3: a screen of its own, 640x480, not one of the Workbench's size
+		user_width = 2*default_width_c;
+		user_height = 2*default_height_c;
 #endif
 		if( !screen->open(user_width, user_height, fullscreen) ) {
 			LOG("can't open screen\n");
@@ -3234,7 +3247,7 @@ bool Game::readLineFromRWOps(bool &ok, SDL_RWops *file, char *buffer, char *line
 	if( !reached_end ) {
 		// fill up buffer
 		for(;;) {
-			int n_read = file->read(file, &buffer[buffer_offset], 1, MAX_LINE-buffer_offset);
+			int n_read = SDL_RWread(file, &buffer[buffer_offset], 1, MAX_LINE-buffer_offset);
 			//LOG("buffer offset %d , read %d\n", buffer_offset, n_read);
 			if( n_read == 0 ) {
 				// error or eof - don't quit yet, still need to finish reading buffer
@@ -3313,7 +3326,7 @@ bool Game::readMap(const char *filename) {
 			ok = readMapProcessLine(&epoch, &index, &l_map, line, MAX_LINE, filename);
 		}
 	}
-	file->close(file);
+	SDL_RWclose(file);
 
 	if( !ok && l_map != NULL ) {
 		LOG("delete map that was created\n");
@@ -3822,8 +3835,8 @@ void Game::saveState() const {
 			size_t length = stream.str().length();
 			char *ptr = new char[length];
 			stream.read(ptr, length);
-			file->write(file, ptr, length, 1);
-			file->close(file);
+			SDL_RWwrite(file, ptr, length, 1);
+			SDL_RWclose(file);
 		}
 		delete [] save_fullfilename;
 	}
@@ -4046,11 +4059,11 @@ bool Game::loadState() {
 		size_t size = (size_t)SDL_RWtell(file);
 		SDL_RWseek(file, 0, RW_SEEK_SET);
 #else
-		size_t size = (size_t)file->size(file);
+		size_t size = (size_t)SDL_RWsize(file);
 #endif
 		char *buffer = new char[size+1];
-		if( file->read(file, buffer, 1, size) > 0 ) {
-			file->close(file);
+		if( SDL_RWread(file, buffer, 1, size) > 0 ) {
+			SDL_RWclose(file);
 			// rename immediately so that if there's a crash while loading the saved state, the game doesn't repeatedly crash
 			const char *save_old_fullfilename = getApplicationFilename(autosave_old_filename, autosave_survive_uninstall);
 			remove(save_old_fullfilename);
@@ -4102,7 +4115,7 @@ bool Game::loadState() {
 			}
 		}
 		else {
-			file->close(file);
+			SDL_RWclose(file);
 			const char *save_bad_fullfilename = getApplicationFilename(autosave_bad_filename, autosave_survive_uninstall);
 			remove(save_bad_fullfilename);
 			rename(save_fullfilename, save_bad_fullfilename);
@@ -4278,7 +4291,7 @@ void Game::loadPrefs() {
 				}
 			}
 		}
-		prefs_file->close(prefs_file);
+		SDL_RWclose(prefs_file);
 
 #if defined(__ANDROID__)
 		// force onemousebutton mode, just to be safe
@@ -4296,22 +4309,22 @@ void Game::savePrefs() const {
 	}
 	else {
 		if( onemousebutton ) {
-			prefs_file->write(prefs_file, onemousebutton_key, sizeof(char), strlen(onemousebutton_key));
-			prefs_file->write(prefs_file, "\n", sizeof(char), 1);
+			SDL_RWwrite(prefs_file, onemousebutton_key, sizeof(char), strlen(onemousebutton_key));
+			SDL_RWwrite(prefs_file, "\n", sizeof(char), 1);
 		}
 		if( pref_sound_on ) {
-			prefs_file->write(prefs_file, sound_on_key, sizeof(char), strlen(sound_on_key));
-			prefs_file->write(prefs_file, "\n", sizeof(char), 1);
+			SDL_RWwrite(prefs_file, sound_on_key, sizeof(char), strlen(sound_on_key));
+			SDL_RWwrite(prefs_file, "\n", sizeof(char), 1);
 		}
 		if( pref_music_on ) {
-			prefs_file->write(prefs_file, music_on_key, sizeof(char), strlen(music_on_key));
-			prefs_file->write(prefs_file, "\n", sizeof(char), 1);
+			SDL_RWwrite(prefs_file, music_on_key, sizeof(char), strlen(music_on_key));
+			SDL_RWwrite(prefs_file, "\n", sizeof(char), 1);
 		}
 		if( pref_disallow_nukes ) {
-			prefs_file->write(prefs_file, disallow_nukes_key, sizeof(char), strlen(disallow_nukes_key));
-			prefs_file->write(prefs_file, "\n", sizeof(char), 1);
+			SDL_RWwrite(prefs_file, disallow_nukes_key, sizeof(char), strlen(disallow_nukes_key));
+			SDL_RWwrite(prefs_file, "\n", sizeof(char), 1);
 		}
-		prefs_file->close(prefs_file);
+		SDL_RWclose(prefs_file);
 	}
 	delete [] prefs_fullfilename;
 }
@@ -5279,16 +5292,16 @@ void Game::copyFile(const char *src, const char *dst) const {
 	size_t size = (size_t)SDL_RWtell(read_file);
 	SDL_RWseek(read_file, 0, RW_SEEK_SET);
 #else
-	size_t size = (size_t)read_file->size(read_file);
+	size_t size = (size_t)SDL_RWsize(read_file);
 #endif
 	char *buffer = new char[size+1];
-	if( read_file->read(read_file, buffer, 1, size) == 0 ) {
-		read_file->close(read_file);
+	if( SDL_RWread(read_file, buffer, 1, size) == 0 ) {
+		SDL_RWclose(read_file);
 		throw string("failed to read from test save state file");
 	}
-	save_file->write(save_file, buffer, 1, size);
-	save_file->close(save_file);
-	read_file->close(read_file);
+	SDL_RWwrite(save_file, buffer, 1, size);
+	SDL_RWclose(save_file);
+	SDL_RWclose(read_file);
 	delete [] buffer;
 }
 
@@ -5304,7 +5317,7 @@ void playGame(int n_args, char *args[]) {
 #endif
 
 	bool fullscreen = true;
-#if defined(__amigaos4__) || defined(AROS) || defined(__MORPHOS__)
+#if defined(__amigaos4__) || defined(AROS) || defined(__MORPHOS__) || defined(__amigaos__)
 	fullscreen = false; // run in windowed mode due to reported performance problems in fullscreen mode on AmigaOS 4; also randomly hangs on AROS in fullscreen mode; also included MorphOS just to be safe
 #endif
 #ifdef _DEBUG
