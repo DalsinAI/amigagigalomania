@@ -66,7 +66,7 @@ package: $(OUT)/$(PROG) AMIGA_PORT.md amiga/COPYING-GPL2.txt readme.html amiga/L
 	cp amiga/Licences.txt $(OUT)/Licences.txt
 	cp amiga/icons/gigalomania.info amiga/icons/ReadMe.info $(OUT)/
 	for f in readme.html COPYING.txt Licences.txt; do cp amiga/icons/ReadMe.info $(OUT)/$$f.info; done
-	for d in $(DATADIRS) User; do cp amiga/icons/Data.info $(OUT)/$$d.info; done
+	for d in User; do cp amiga/icons/Data.info $(OUT)/$$d.info; done
 	cp amiga/icons/Gigalomania-drawer.info $(BUILD)/Gigalomania.info
 	cp amiga/installer/Install-Gigalomania amiga/installer/Install-Gigalomania.info $(BUILD)/
 
